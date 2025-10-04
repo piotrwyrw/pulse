@@ -50,13 +50,21 @@ func Bootstrap() {
 
 	wg := &sync.WaitGroup{}
 
-	speedtest.StartSpeedTestService(records, cfg, ctx, wg)
+	err = speedtest.StartSpeedTestService(records, cfg, ctx, wg)
+	if err != nil {
+		logrus.Fatalf("Could not start speedtest service: %v", err)
+		cancel()
+		goto close
+	}
 
 	err = api.StartHTTPServer(cfg, records, ctx)
 	if err != nil {
 		logrus.Fatalf("Error occurred in HTTP server: %v", err)
-		return
+		cancel()
+		goto close
 	}
+
+close:
 
 	wg.Wait()
 }

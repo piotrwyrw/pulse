@@ -22,10 +22,15 @@ type Result struct {
 	} `json:"upload"`
 }
 
-func Run(ctx context.Context, cfg *config.PulseConfig) (*Result, error) {
-	logrus.Infof("Running speedtest...")
-	cmd := exec.CommandContext(ctx, cfg.Testing.BinaryPath, "--accept-license", "--accept-gdpr", "-f", "json")
+func invokeCommand(ctx context.Context, cfg *config.PulseConfig, binary string, arg ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, binary, arg...)
 	logrus.Debugf("Running: %s", cmd.String())
+	return cmd
+}
+
+func run(ctx context.Context, cfg *config.PulseConfig) (*Result, error) {
+	logrus.Infof("Running speedtest...")
+	cmd := invokeCommand(ctx, cfg, cfg.Testing.BinaryPath, "-f", "json")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -38,12 +43,25 @@ func Run(ctx context.Context, cfg *config.PulseConfig) (*Result, error) {
 	return &result, nil
 }
 
+func AcceptLicenses(ctx context.Context, cfg *config.PulseConfig) error {
+	err := invokeCommand(ctx, cfg, cfg.Testing.BinaryPath, "--accept-license", "--accept-gdpr").Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (res *Result) Speeds() (downMbps float64, upMbps float64) {
 	return float64(res.Download.Bandwidth*8.0) / 1e6, float64(res.Upload.Bandwidth*8.0) / 1e6
 }
 
-func StartSpeedTestService(records *rec.RecordSet, cfg *config.PulseConfig, ctx context.Context, wg *sync.WaitGroup) {
+func StartSpeedTestService(records *rec.RecordSet, cfg *config.PulseConfig, ctx context.Context, wg *sync.WaitGroup) error {
 	logrus.Infof("Speedtest service started")
+	err := AcceptLicenses(ctx, cfg)
+	if err != nil {
+		logrus.Errorf("Could not accept license: %v", err)
+		return err
+	}
 	logrus.Infof("Speedtest will run every %d seconds", cfg.Testing.Interval)
 	last := time.Now().Unix()
 	isRunning := true
@@ -65,8 +83,8 @@ func StartSpeedTestService(records *rec.RecordSet, cfg *config.PulseConfig, ctx 
 					continue
 				}
 
-				// Run the speed test
-				res, err := Run(ctx, cfg)
+				// run the speed test
+				res, err := run(ctx, cfg)
 				last = time.Now().Unix()
 				var down, up float64
 				if err != nil {
@@ -90,4 +108,6 @@ func StartSpeedTestService(records *rec.RecordSet, cfg *config.PulseConfig, ctx 
 		}
 		logrus.Infof("Speedtest service stopped")
 	}()
+
+	return nil
 }
