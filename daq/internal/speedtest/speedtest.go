@@ -43,7 +43,7 @@ func (res *Result) Speeds() (downMbps float64, upMbps float64) {
 
 func StartSpeedTestService(records *rec.RecordSet, cfg *config.PulseConfig, ctx context.Context, wg *sync.WaitGroup) {
 	logrus.Infof("Speedtest service started")
-	logrus.Infof("Speedtest will run every %d seconds", cfg.TestInterval)
+	logrus.Infof("Speedtest will run every %d seconds", cfg.Testing.TestInterval)
 	last := time.Now().Unix()
 	isRunning := true
 	go func() {
@@ -55,23 +55,31 @@ func StartSpeedTestService(records *rec.RecordSet, cfg *config.PulseConfig, ctx 
 				isRunning = false
 				continue
 			default:
+				// Keep waiting until the set testing interval, though not longer than 500ms to not impede
+				// the main loop
 				now := time.Now().Unix()
 				elapsed := now - last
-				if elapsed < cfg.TestInterval {
-					time.Sleep(min(time.Duration(cfg.TestInterval-(now-last))*time.Second, 500*time.Millisecond))
+				if elapsed < cfg.Testing.TestInterval {
+					time.Sleep(min(time.Duration(cfg.Testing.TestInterval-(now-last))*time.Second, 500*time.Millisecond))
 					continue
 				}
+
+				// Run the speed test
 				res, err := Run(ctx)
 				last = time.Now().Unix()
+				var down, up float64
 				if err != nil {
+					logrus.Info("Could not run speedtest. Is the network down?")
+					down, up = 0, 0
 					continue
+				} else {
+					down, up = res.Speeds()
 				}
-				down, up := res.Speeds()
 				err = records.Append(rec.MeasurementRecord{
 					Timestamp:     now,
 					UploadSpeed:   up,
 					DownloadSpeed: down,
-				})
+				}, cfg)
 				if err != nil {
 					logrus.Error(err)
 					continue

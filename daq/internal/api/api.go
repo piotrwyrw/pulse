@@ -31,14 +31,14 @@ func (ctx *HandlerCtx) recordsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func StartHTTPServer(cfg *config.PulseConfig, records *rec.RecordSet, ctxt context.Context) error {
-	logrus.Infof("Starting Pulse API on port %d", cfg.Port)
+	logrus.Infof("Starting Pulse API on port %d", cfg.Pulse.Port)
 	ctx := HandlerCtx{Records: records}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", ctx.rootHandler)
 	mux.HandleFunc("/records", ctx.recordsHandler)
 
 	srv := http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.Port),
+		Addr:    fmt.Sprintf(":%d", cfg.Pulse.Port),
 		Handler: mux,
 	}
 

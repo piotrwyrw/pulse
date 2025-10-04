@@ -1,14 +1,13 @@
 package rec
 
 import (
+	"daq/internal/config"
 	"encoding/gob"
 	"os"
 	"sync"
 
 	"github.com/sirupsen/logrus"
 )
-
-const RecordPath = "records.gob"
 
 type MeasurementRecord struct {
 	Timestamp     int64
@@ -22,11 +21,11 @@ type RecordSet struct {
 
 var recordIoMutex = sync.Mutex{}
 
-func (set *RecordSet) Store() error {
+func (set *RecordSet) Store(cfg *config.PulseConfig) error {
 	recordIoMutex.Lock()
 	defer recordIoMutex.Unlock()
 
-	file, err := os.OpenFile(RecordPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	file, err := os.OpenFile(cfg.Testing.RecordsLocation, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 
 	if err != nil {
 		return err
@@ -36,16 +35,16 @@ func (set *RecordSet) Store() error {
 	return gob.NewEncoder(file).Encode(set)
 }
 
-func (set *RecordSet) Append(record MeasurementRecord) error {
+func (set *RecordSet) Append(record MeasurementRecord, cfg *config.PulseConfig) error {
 	set.Records = append(set.Records, record)
-	return set.Store()
+	return set.Store(cfg)
 }
 
-func (set *RecordSet) Load() error {
+func (set *RecordSet) Load(cfg *config.PulseConfig) error {
 	recordIoMutex.Lock()
 	defer recordIoMutex.Unlock()
 
-	file, err := os.Open(RecordPath)
+	file, err := os.Open(cfg.Testing.RecordsLocation)
 	if err != nil {
 		return err
 	}
@@ -54,19 +53,19 @@ func (set *RecordSet) Load() error {
 	return gob.NewDecoder(file).Decode(set)
 }
 
-func Initialize() (*RecordSet, error) {
-	f, err := os.Stat(RecordPath)
+func Initialize(cfg *config.PulseConfig) (*RecordSet, error) {
+	f, err := os.Stat(cfg.Testing.RecordsLocation)
 
 	// The file does not exist - Create and store an empty one
 	if os.IsNotExist(err) {
 		set := &RecordSet{
 			Records: []MeasurementRecord{},
 		}
-		err = set.Store()
+		err = set.Store(cfg)
 		if err != nil {
 			return nil, err
 		}
-		logrus.Infof("Created new records file: %s", RecordPath)
+		logrus.Infof("Created new records file: %s", cfg.Testing.RecordsLocation)
 		return set, nil
 	}
 
@@ -75,20 +74,20 @@ func Initialize() (*RecordSet, error) {
 	}
 
 	if f.IsDir() {
-		err := os.RemoveAll(RecordPath)
+		err := os.RemoveAll(cfg.Testing.RecordsLocation)
 		if err != nil {
 			return nil, err
 		}
-		logrus.Infof("Records file is a directory. Removing it now: %s", RecordPath)
-		return Initialize()
+		logrus.Infof("Records file is a directory. Removing it now: %s", cfg.Testing.RecordsLocation)
+		return Initialize(cfg)
 	}
 
 	set := &RecordSet{}
-	err = set.Load()
+	err = set.Load(cfg)
 	if err != nil {
 		return nil, err
 	}
-	logrus.Infof("Loading existing records file: %s", RecordPath)
+	logrus.Infof("Loading existing records file: %s", cfg.Testing.RecordsLocation)
 	logrus.Infof("Existing records file contains %d record(s).", len(set.Records))
 	return set, nil
 }

@@ -1,0 +1,6 @@
+[pulse]
+port = 7510
+
+[testing]
+interval = 5
+records = "/var/lib/records.gob"
