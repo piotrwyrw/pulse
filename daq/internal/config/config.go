@@ -2,6 +2,7 @@ package config
 
 import (
 	_ "embed"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -27,7 +28,19 @@ type PulseConfig struct {
 	Testing PulseTestingConfig `toml:"testing"`
 }
 
-func ParseConfig() (*PulseConfig, error) {
+func validateConfig(cfg *PulseConfig) error {
+	if cfg.Testing.RecordsLocation == "" {
+		return fmt.Errorf("invalid config: missing records location")
+	}
+
+	if cfg.Testing.TestInterval < 1 {
+		return fmt.Errorf("invalid config: test interval must be >= 1")
+	}
+
+	return nil
+}
+
+func parseConfig() (*PulseConfig, error) {
 	f, err := os.Open(ConfigLocation)
 	if err != nil {
 		return nil, err
@@ -77,9 +90,15 @@ func Initialize() (*PulseConfig, error) {
 	}
 
 parse:
-	cfg, err := ParseConfig()
+	cfg, err := parseConfig()
 	if err != nil {
 		return nil, err
 	}
+
+	err = validateConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
 }
