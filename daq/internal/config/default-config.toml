@@ -1,6 +1,7 @@
-[pulse]
+[http]
 port = 7510
 
-[testing]
+[speedtest]
 interval = 5
-records = "/var/lib/pulse-records.gob"
+records_path = "/var/lib/pulse-records.gob"
+binary = "/usr/bin/speedtest"

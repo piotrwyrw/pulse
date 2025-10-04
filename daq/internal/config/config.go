@@ -14,26 +14,23 @@ const ConfigLocation = "/etc/pulsedaq/config.toml"
 //go:embed default-config.toml
 var defaultConfig []byte
 
-type PulseMainConfig struct {
-	Port int `toml:"port"`
-}
-
-type PulseTestingConfig struct {
-	TestInterval    int64  `toml:"interval"`
-	RecordsLocation string `toml:"records"`
-}
-
 type PulseConfig struct {
-	Pulse   PulseMainConfig    `toml:"pulse"`
-	Testing PulseTestingConfig `toml:"testing"`
+	Http struct {
+		Port int `toml:"port"`
+	} `toml:"http"`
+	Testing struct {
+		Interval    int64  `toml:"interval"`
+		RecordsPath string `toml:"records_path"`
+		BinaryPath  string `toml:"binary"`
+	} `toml:"speedtest"`
 }
 
 func validateConfig(cfg *PulseConfig) error {
-	if cfg.Testing.RecordsLocation == "" {
+	if cfg.Testing.RecordsPath == "" {
 		return fmt.Errorf("invalid config: missing records location")
 	}
 
-	if cfg.Testing.TestInterval < 1 {
+	if cfg.Testing.Interval < 1 {
 		return fmt.Errorf("invalid config: test interval must be >= 1")
 	}
 

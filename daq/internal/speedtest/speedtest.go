@@ -22,9 +22,10 @@ type Result struct {
 	} `json:"upload"`
 }
 
-func Run(ctx context.Context) (*Result, error) {
+func Run(ctx context.Context, cfg *config.PulseConfig) (*Result, error) {
 	logrus.Infof("Running speedtest...")
-	cmd := exec.CommandContext(ctx, "speedtest", "-f", "json")
+	cmd := exec.CommandContext(ctx, cfg.Testing.BinaryPath, "--accept-license", "--accept-gdpr", "-f", "json")
+	logrus.Debugf("Running: %s", cmd.String())
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -43,7 +44,7 @@ func (res *Result) Speeds() (downMbps float64, upMbps float64) {
 
 func StartSpeedTestService(records *rec.RecordSet, cfg *config.PulseConfig, ctx context.Context, wg *sync.WaitGroup) {
 	logrus.Infof("Speedtest service started")
-	logrus.Infof("Speedtest will run every %d seconds", cfg.Testing.TestInterval)
+	logrus.Infof("Speedtest will run every %d seconds", cfg.Testing.Interval)
 	last := time.Now().Unix()
 	isRunning := true
 	go func() {
@@ -59,13 +60,13 @@ func StartSpeedTestService(records *rec.RecordSet, cfg *config.PulseConfig, ctx 
 				// the main loop
 				now := time.Now().Unix()
 				elapsed := now - last
-				if elapsed < cfg.Testing.TestInterval {
-					time.Sleep(min(time.Duration(cfg.Testing.TestInterval-(now-last))*time.Second, 500*time.Millisecond))
+				if elapsed < cfg.Testing.Interval {
+					time.Sleep(min(time.Duration(cfg.Testing.Interval-(now-last))*time.Second, 500*time.Millisecond))
 					continue
 				}
 
 				// Run the speed test
-				res, err := Run(ctx)
+				res, err := Run(ctx, cfg)
 				last = time.Now().Unix()
 				var down, up float64
 				if err != nil {
