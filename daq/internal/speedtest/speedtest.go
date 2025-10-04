@@ -70,7 +70,7 @@ func StartSpeedTestService(records *rec.RecordSet, cfg *config.PulseConfig, ctx 
 				last = time.Now().Unix()
 				var down, up float64
 				if err != nil {
-					logrus.Info("Could not run speedtest. Is the network down?")
+					logrus.Infof("Could not run speedtest: %v", err)
 					down, up = 0, 0
 					continue
 				} else {
