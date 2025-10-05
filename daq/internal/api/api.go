@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rs/cors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -37,9 +38,14 @@ func StartHTTPServer(cfg *config.PulseConfig, records *rec.RecordSet, ctxt conte
 	mux.HandleFunc("/", ctx.rootHandler)
 	mux.HandleFunc("/records", ctx.recordsHandler)
 
+	corsHandler := cors.New(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+	}).Handler(mux)
+
 	srv := http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Http.Port),
-		Handler: mux,
+		Handler: corsHandler,
 	}
 
 	go func() {
